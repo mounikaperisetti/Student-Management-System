@@ -198,6 +198,11 @@ def generateOTP():
     return otp
 
 def sendOIPviaEmail():
+    # 1, to whom, we have to send OTP    ==> to address
+    # 2, Through whhich acc we have to send OTP    ==> from address
+    # 3, from - gmail LOGIN  - APP PASSWORD(here is is an encrypted password we have to create)
+    # 4, Mail Compose
+    # 4, Mail Send
     pass
 
 
