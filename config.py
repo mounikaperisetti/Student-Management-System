@@ -1,4 +1,4 @@
-# It isa abstraction layer of .env
+# It is a abstraction layer of .env
 
 from dotenv import load_dotenv
 import os
@@ -11,4 +11,6 @@ class Config():
     db_user = os.getenv('DB_USER')
     db_password = os.getenv('DB_PASSWORD')
     db_name = os.getenv('DB_NAME') 
+    from_email = os.getenv('FROM_EMAIL')
+    email_app_password = os.getenv('EMAIL_APP_PASSWORD')
 

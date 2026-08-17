@@ -1,8 +1,15 @@
 from config import Config
 import mysql.connector as sql
 import random
+import smtplib
+from email.message import EmailMessage
+from flask import Flask,render_template,redirect,url_for,request
+
+app = Flask(__name__)
 
 DBConfig = Config()
+from_email = DBConfig.from_email
+email_app_password = DBConfig.email_app_password
 
 def getConnectionWithDB():
     db_host = DBConfig.db_host   # here .db_host is memeber variable wheree db_host = is a local variable
@@ -197,13 +204,87 @@ def generateOTP():
     otp = random.randint(1000,9999)
     return otp
 
-def sendOIPviaEmail():
+def sendOTPviaEmail(to_email,otp):
     # 1, to whom, we have to send OTP    ==> to address
     # 2, Through whhich acc we have to send OTP    ==> from address
     # 3, from - gmail LOGIN  - APP PASSWORD(here is is an encrypted password we have to create)
     # 4, Mail Compose
     # 4, Mail Send
-    pass
+    message = EmailMessage()
+    message['Subject'] = 'OTP Notification'
+    message['From'] = from_email
+    message['To'] = to_email
+    message.set_content(
+        f"Your OTP is {otp}"
+    )
+    with smtplib.SMTP("smtp.gmail.com",587) as server:   # here with operater does is: whaterver obj is creaetd within the block the object destroys automatically  when its done
+        server.starttls()
+        server.login(from_email,email_app_password)
+        server.send_message(message)
+    return True
+
+def validateData(user_data):
+    errors = []
+    name = user_data['name']
+    email = user_data['email']
+    password = user_data['password']
+    confirm_password = user_data['confirm_password']
+    if name is None or len(name)<2 or '':
+        errors.append("Invalid Name")
+    if email is None or len(email)<5 or '':
+        errors.append("Invalid Email")
+    if password is None or len(password)<5 or '':
+        errors.append("Invalid Passowrd")
+    if password != confirm_password:
+        errors.append( "Passwords do not match")
+    return errors
 
 
-print(generateOTP())
+# user_data={
+#     "name":"",
+#     "email":"mounikaperisetti84@gmail.com",
+#     "password":"12345",
+#     "confirm_password":"123"
+#     }
+
+# print(validateData(user_data))
+# Routes
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/register',methods=['GET','POST'])
+def register():
+    if (request.method=='GET'):
+        return render_template('register.html')
+    elif (request.method=='POST'):
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        user_data={
+            "name":name,
+            "email":email,
+            "password":password,
+            "confirm_password":confirm_password    
+        }
+        errors = validateData(user_data)
+        return render_template('register.html',errors=errors)
+
+
+
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+
+if(__name__ == '__main__'):
+    app.run(
+        host = '0.0.0.0',
+        port = 5000,
+        debug = True
+    )
