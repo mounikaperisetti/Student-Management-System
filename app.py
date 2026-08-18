@@ -4,6 +4,7 @@ import random
 import smtplib
 from email.message import EmailMessage
 from flask import Flask,render_template,redirect,url_for,request
+import bcrypt
 
 app = Flask(__name__)
 
@@ -94,7 +95,7 @@ def readUserRecordByEmail(user_data):
         except:
             cursor.close()
             connection.close()
-            return f'No record Found for {email}'
+            return 'No record'
 
 def readUserRecordById(user_data):
     id = user_data['id']
@@ -223,7 +224,7 @@ def sendOTPviaEmail(to_email,otp):
         server.send_message(message)
     return True
 
-def validateData(user_data):
+def validateDataForRegister(user_data):
     errors = []
     name = user_data['name']
     email = user_data['email']
@@ -239,15 +240,23 @@ def validateData(user_data):
         errors.append( "Passwords do not match")
     return errors
 
+def verifyDuplicateEmail(user_data):
+    record = readUserRecordByEmail(user_data)
+    if record == 'No record':
+        return False   # no duplicate
+    else:
+        return True
 
-# user_data={
-#     "name":"",
-#     "email":"mounikaperisetti84@gmail.com",
-#     "password":"12345",
-#     "confirm_password":"123"
-#     }
+# encode - Str to bytes
+# decode - Bytes to Str
+# gensalt - used to generate a key
+# for gensalt we have pass how many this key to iterate
+def generateHash(text):
+    btext = text.encode('utf-8')     
+    print(text[0],btext[0])    # here  text is string;  btext is bytes
+    cypher_text =  bcrypt.hashpw(btext, bcrypt.gensalt(4))
+    return cypher_text.decode('utf-8')
 
-# print(validateData(user_data))
 # Routes
 @app.route('/')
 def home():
@@ -255,9 +264,13 @@ def home():
 
 @app.route('/register',methods=['GET','POST'])
 def register():
+    #request is GET {Browser}
     if (request.method=='GET'):
+        # Display html file
         return render_template('register.html')
+    # request is HTML FORM POST
     elif (request.method=='POST'):
+        # Step 1: Input User data
         name = request.form['name']
         email = request.form['email']
         password = request.form['password']
@@ -268,9 +281,36 @@ def register():
             "password":password,
             "confirm_password":confirm_password    
         }
-        errors = validateData(user_data)
-        return render_template('register.html',errors=errors)
-
+        # Step-2: Validate the suer data
+        errors = validateDataForRegister(user_data)
+        if len(errors) > 0:
+            # if errors exist, display errors
+            return render_template('register.html',errors=errors)
+        else:
+            # if no errors, start business logic:
+            # 1, check weather acc exist on this email or not
+            is_duplicate = verifyDuplicateEmail(user_data)
+            if is_duplicate == False:
+                # 2, if there is no acc 
+                # 3, convert password to hash value 
+                password_hash = generateHash(user_data['password'])
+                # 4, inserting this data into table
+                name = user_data['name']
+                email = user_data['email']
+                status = insertUserRecord({
+                    'name': name,
+                    'email' : email,
+                    'password_hash' : password_hash
+                })
+                # 4, status of insertion
+                if status == True:  
+                    return render_template('register.html', res = 'Registration Successfully Completed')
+                else:
+                    return render_template('register.html', err = "Registration Failed")
+            else:
+                return render_template('register.html', err = "Account Already Exist")
+# Registration flow
+# Register.html <-> Registration form ->POST <-> Python -> CO=ollection Data ->Validating -> Password to Password HAsh -<> MySQL Table
 
 
 @app.route('/login')

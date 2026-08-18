@@ -1,4 +1,4 @@
 Flask
 mysql-connector-python
-flask-bcrypt
+flask-bcrypt  
 python-dotenv
