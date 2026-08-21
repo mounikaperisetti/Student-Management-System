@@ -3,11 +3,13 @@ import mysql.connector as sql
 import random
 import smtplib
 from email.message import EmailMessage
-from flask import Flask,render_template,redirect,url_for,request
+from flask import Flask, render_template, redirect, url_for, request, session
 import bcrypt
 
 app = Flask(__name__)
-
+app.secret_key = "Mounik@03" # this help the session to validate  without this key cant cannot use sesssion useing key we can access values in session
+# session is used when one page data is used in another page.. like from register 'email' to in verify 'email'
+# we can store values in session.. soo lets take otp in session and remove otp from global
 DBConfig = Config()
 from_email = DBConfig.from_email
 email_app_password = DBConfig.email_app_password
@@ -292,7 +294,9 @@ def register():
             is_duplicate = verifyDuplicateEmail(user_data)
             if is_duplicate == False:
                 # 2, if there is no acc 
-                # 3, convert password to hash value 
+                # 3, convert password to hash value
+                ######  here lets create session ###########
+                OTP = generateOTP()          # 
                 password_hash = generateHash(user_data['password'])
                 # 4, inserting this data into table
                 name = user_data['name']
@@ -304,23 +308,59 @@ def register():
                 })
                 # 4, status of insertion
                 if status == True:  
-                    return render_template('register.html', res = 'Registration Successfully Completed')
+                    session['username'] = email     ## here theese session can be access anywhere until its logot.. lets see this session in verify
+                    session['otp'] = OTP
+                    sendOTPviaEmail(email,OTP)
+                    # return render_template('register.html', res = 'Registration Successfully Completed')
+                    return redirect('/verify')
                 else:
                     return render_template('register.html', err = "Registration Failed")
             else:
                 return render_template('register.html', err = "Account Already Exist")
-# Registration flow
+
+@app.route('/verify',methods=['GET','POST'])
+def verify():
+    if request.method == 'GET':
+        return render_template('verify.html')
+    elif (request.method == 'POST'):
+        otp = request.form['otp']
+        otp = int(otp)   # here this otp is stored in server side ram 
+        if otp == session['otp']:  ## here we take the session['otp'] which is from register page  se here the entered otp and the otp generated are equal lets change record i mean is_verified and update it in table
+            # here session['otp'] is stored in client side browser side memory 
+            is_verified = True
+            updateIsVerifiedByIdorEmail({'email' : session['username']})  # here the datatype of argument is string.. and datatype of session is dictionary
+            return redirect('/login')
+        else:
+            return render_template('verify.html', err = "Invalid OTP")
+
+#-------------- Registration flow ---------------#
 # Register.html <-> Registration form ->POST <-> Python -> CO=ollection Data ->Validating -> Password to Password HAsh -<> MySQL Table
+# name,email,password,COnform password and submit
+# verifyduplicateEmai() - if acc not existed
+# generate otp
+# send email with otp
+# redirect to verofy.html
+# enter otp received from email
+#the otp  entered with session otp
+# if they are matched, it redirects to login .html
+# if they are not matched, it redirects with a rerros message
 
-
-@app.route('/login')
+@app.route('/login', methods=['GET','POST'])
 def login():
-    return render_template('login.html')
+    if request.method == 'GET':
+        return render_template('login.html')
+    elif (request.method == 'POST'):
+        email = request.form['email']
+        password = request.form['password']
+        # we have to check acc existed or not
+        # if data exist, then we have to check is_verified is True or False
+        # if acc exist and verified, then campare passwords
+        # if password is equal then create session.. inside session we have to store email
+        
 
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
-
 
 if(__name__ == '__main__'):
     app.run(
