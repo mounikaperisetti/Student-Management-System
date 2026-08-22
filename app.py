@@ -365,8 +365,13 @@ def login():
             return render_template('login.html', err = "Password do not match")
         else:
             session['username'] = email
-            return redirect('/dashboard')
-        
+            return redirect('/dashboard')     
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+          
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
