@@ -327,8 +327,8 @@ def verify():
         otp = int(otp)   # here this otp is stored in server side ram 
         if otp == session['otp']:  ## here we take the session['otp'] which is from register page  se here the entered otp and the otp generated are equal lets change record i mean is_verified and update it in table
             # here session['otp'] is stored in client side browser side memory 
-            is_verified = True
-            updateIsVerifiedByIdorEmail({'email' : session['username']})  # here the datatype of argument is string.. and datatype of session is dictionary
+            
+            updateIsVerifiedByIdorEmail({'email' : session['username'],'is_verified' : True})  # here the datatype of argument is string.. and datatype of session is dictionary
             return redirect('/login')
         else:
             return render_template('verify.html', err = "Invalid OTP")
@@ -354,10 +354,19 @@ def login():
         password = request.form['password']
         # we have to check acc existed or not
         # if data exist, then we have to check is_verified is True or False
-        # if acc exist and verified, then campare passwords
+        # if acc exist and verified, then compare passwords
         # if password is equal then create session.. inside session we have to store email
+        user_data = readUserRecordByEmail({'email': email})
+        if user_data == 'No record':
+            return render_template('login.html', err = "Email Not exist")
+        elif user_data['is_verified'] == False:
+            return render_template('login.html', err = "Please Verify you account")
+        elif bcrypt.checkpw(password.encode('utf-8'), user_data['password_hash'].encode('utf-8')) == False:
+            return render_template('login.html', err = "Password do not match")
+        else:
+            session['username'] = email
+            return redirect('/dashboard')
         
-
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
