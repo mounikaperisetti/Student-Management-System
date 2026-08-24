@@ -339,7 +339,7 @@ def verify():
 # verifyduplicateEmai() - if acc not existed
 # generate otp
 # send email with otp
-# redirect to verofy.html
+# redirect to verify.html
 # enter otp received from email
 #the otp  entered with session otp
 # if they are matched, it redirects to login .html
@@ -364,17 +364,66 @@ def login():
         elif bcrypt.checkpw(password.encode('utf-8'), user_data['password_hash'].encode('utf-8')) == False:
             return render_template('login.html', err = "Password do not match")
         else:
-            session['username'] = email
+            session['username'] = user_data['name']
+            session['email'] = email
             return redirect('/dashboard')     
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/login')
+
+
           
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html')
+    if 'username' not in session:
+        return redirect('/login')
+    email = session['email']
+    username = session['username']
+    user_data = readUserRecordByEmail({'email':email})
+    if user_data == 'No record':
+        session.clear()
+        return redirect('/login')
+    user_id = user_data['id']
+    user_name = user_data['name']
+    connection = getConnectionWithDB()
+    if connection == 'Connection Failed':
+        return False
+    else:
+        cursor = connection.cursor()
+        # total notes 
+        cursor.execute("SELECT COUNT(*) FROM notes WHERE user_id = %s",(user_id,))
+        total_notes = cursor.fetchone()[0]
+        # total files
+        cursor.execute("SELECT COUNT(*) FROM file_data WHERE user_id = %s",(user_id,))
+        total_files = cursor.fetchone()[0]
+        # recent_files
+        cursor.execute("SELECT * FROM notes WHERE user_id = %s ORDER BY created_at DESC LIMIT 5",(user_id,))
+        notes_data = cursor.fetchall()
+        cursor.close()
+        connection.close()
+        #convert tuple data into dictinaries
+        notes = []
+        for note in notes_data:
+            notes.append({
+
+                'id': note[0],
+                'title': note[2],
+                'content': note[3],
+                'created_at': note[4],
+                'updated_at': note[5]
+            })
+        return render_template(
+            'dashboard.html', 
+            username = username,
+            total_notes = total_notes,
+            total_files = total_files,
+            notes = notes
+            )
+
+    
+
 
 if(__name__ == '__main__'):
     app.run(
