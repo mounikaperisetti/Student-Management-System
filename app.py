@@ -365,14 +365,47 @@ def login():
             return render_template('login.html', err = "Password do not match")
         else:
             session['username'] = user_data['name']
+            session['id'] = user_data['id']
             session['email'] = email
             return redirect('/dashboard')     
 
 @app.route('/logout')
 def logout():
-    session.clear()
+    if "id" in session:
+        session.pop('id',None)
+        session.pop('name',None)
+        session.pop('email',None)
+    # session.clear()
     return redirect('/login')
 
+@app.route('/profile')
+def profile():
+    if "id" not in session:
+        return redirect('/login')
+    id = session["id"]
+    user_data = readUserRecordByEmail({"email":session['email']})
+    if user_data == 'No record':
+        return render_template("profile.html", user = None, err = "User Data Not Found")
+    return render_template("profile.html", user = user_data )
+    # ------or we can write  as below ------------
+    # connection = getConnectionWithDB()
+    # if connection == 'Connection Failed':
+    #     return False
+    # else:
+    #     cursor = connection.cursor()
+    #     cursor.execute("SELECT * FROM users WHERE id = %s",(id,))
+    #     data = cursor.fetchone()
+    #     record = {
+    #         'id' : data[0],
+    #         'name' : data[1],
+    #         'email' : data[2],                
+    #         'password_hash' : data[3],
+    #         'is_verified' : data[4],
+    #         'created_at' : data[5]
+    #     }
+    #     cursor.close()
+    #     connection.close()
+    #     return render_template('profile.html',user = record)
 
           
 @app.route('/dashboard')

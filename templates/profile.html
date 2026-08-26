@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+Profile - SNS
+{% endblock %}
+{% block navmenu %}
+<a href="{{ url_for('dashboard') }}">Dashboard</a>
+{% endblock %}
+
+
+{% block content %}
+
+<section class="profile-page">
+
+    <div class="profile-header">
+
+        <h1>
+            My Profile
+        </h1>
+
+        <p>
+            Manage your account information and preferences.
+        </p>
+
+    </div>
+
+
+    <div class="profile-card">
+
+        <!-- Profile top section -->
+
+        <div class="profile-top">
+
+            <div class="profile-avatar">
+
+                {{ user.name[0].upper() }}
+
+            </div>
+
+
+            <div class="profile-name">
+
+                <h2>
+                    {{ user.name }}
+                </h2>
+
+                <p>
+                    {{ user.email }}
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- Profile information -->
+
+        <div class="profile-info">
+
+            <div class="profile-item">
+
+                <span>
+                    Full Name
+                </span>
+
+                <strong>
+                    {{ user.name }}
+                </strong>
+
+            </div>
+
+
+            <div class="profile-item">
+
+                <span>
+                    Email Address
+                </span>
+
+                <strong>
+                    {{ user.email }}
+                </strong>
+
+            </div>
+
+
+            <div class="profile-item">
+
+                <span>
+                    Account Status
+                </span>
+
+                {% if user.is_verified %}
+
+                    <strong class="verified">
+                        Verified
+                    </strong>
+
+                {% else %}
+
+                    <strong class="not-verified">
+                        Not Verified
+                    </strong>
+
+                {% endif %}
+
+            </div>
+
+
+            <div class="profile-item">
+
+                <span>
+                    Member Since
+                </span>
+
+                <strong>
+                    {{ user.created_at.strftime('%d %b %Y') }}
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <!-- Actions -->
+
+        <div class="profile-actions">
+
+            <a
+                href="/profile/edit"
+                class="btn btn-primary"
+            >
+                Edit Profile
+            </a>
+
+
+            <a
+                href="/dashboard"
+                class="btn btn-secondary"
+            >
+                Back to Dashboard
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}
