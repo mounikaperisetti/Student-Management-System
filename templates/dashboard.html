@@ -27,12 +27,23 @@ Dashboard - SNS
     </div>
 
 
+    <div class="dashboard-actions">
+
     <a
-        href="/notes/add"
+        href="{{ url_for('notes') }}"
         class="btn btn-primary"
     >
-        + Add Note
+        My Notes
     </a>
+
+    <a
+        href="{{ url_for('files') }}"
+        class="btn btn-primary"
+    >
+        My Files
+    </a>
+
+</div>
 
 </section>
 

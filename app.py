@@ -1,4 +1,4 @@
-from config import Config
+from config import Config, emailTemplates
 import mysql.connector as sql
 import random
 import smtplib
@@ -6,10 +6,16 @@ from email.message import EmailMessage
 from flask import Flask, render_template, redirect, url_for, request, session
 import bcrypt
 
+from itsdangerous import URLSafeTimedSerializer, BadSignature, TimedSerializer
+# here above is imported  to generate token
+# timed signature: used for some time limit 
+
 app = Flask(__name__)
 app.secret_key = "Mounik@03" # this help the session to validate  without this key cant cannot use sesssion useing key we can access values in session
 # session is used when one page data is used in another page.. like from register 'email' to in verify 'email'
 # we can store values in session.. soo lets take otp in session and remove otp from global
+
+serializer = URLSafeTimedSerializer(app.secret_key) # here it is used because
 DBConfig = Config()
 from_email = DBConfig.from_email
 email_app_password = DBConfig.email_app_password
@@ -226,6 +232,18 @@ def sendOTPviaEmail(to_email,otp):
         server.send_message(message)
     return True
 
+def sendEmail(subject : str, to_email : str, body : str):
+    message = EmailMessage()
+    message['Subject'] = subject
+    message['From'] = from_email
+    message['To'] = to_email
+    message.set_content(body)
+    with smtplib.SMTP("smtp.gmail.com",587) as server:   # here with operater does is: whaterver obj is creaetd within the block the object destroys automatically  when its done
+        server.starttls()
+        server.login(from_email,email_app_password)
+        server.send_message(message)
+    return True
+
 def validateDataForRegister(user_data):
     errors = []
     name = user_data['name']
@@ -258,6 +276,30 @@ def generateHash(text):
     print(text[0],btext[0])    # here  text is string;  btext is bytes
     cypher_text =  bcrypt.hashpw(btext, bcrypt.gensalt(4))
     return cypher_text.decode('utf-8')
+
+# reset password token generation       
+def resetPasswordTokenGenerate(email):
+
+    token = serializer.dumps(
+        email,
+        salt="reset-password" #  its important for generating unique token 
+    )
+
+    return token
+
+#validate token
+def validateToken(token):
+    try:
+        data = serializer.loads(
+            token,
+            salt = "reset-password",
+            max_age=600
+        )
+        return data
+    except BadSignature:   # if token changed
+        return "Invalid"  
+    except TimedSerializer: # if token time out
+        return "Timeout"
 
 # Routes
 @app.route('/')
@@ -310,7 +352,11 @@ def register():
                 if status == True:  
                     session['username'] = email     ## here theese session can be access anywhere until its logot.. lets see this session in verify
                     session['otp'] = OTP
-                    sendOTPviaEmail(email,OTP)
+                    sendEmail(
+                        subject = "Verify you registration",
+                        to_email = email,
+                        body = emailTemplates.send_otp_template(username = name, otp = OTP)
+                        )
                     # return render_template('register.html', res = 'Registration Successfully Completed')
                     return redirect('/verify')
                 else:
@@ -324,8 +370,9 @@ def verify():
         return render_template('verify.html')
     elif (request.method == 'POST'):
         otp = request.form['otp']
-        otp = int(otp)   # here this otp is stored in server side ram 
-        if otp == session['otp']:  ## here we take the session['otp'] which is from register page  se here the entered otp and the otp generated are equal lets change record i mean is_verified and update it in table
+        # otp = int(otp)   # here this otp is stored in server side ram 
+        # if otp == session['otp']:  ## here we take the session['otp'] which is from register page  se here the entered otp and the otp generated are equal lets change record i mean is_verified and update it in table
+        if otp == str(session.get('otp')):    
             # here session['otp'] is stored in client side browser side memory 
             
             updateIsVerifiedByIdorEmail({'email' : session['username'],'is_verified' : True})  # here the datatype of argument is string.. and datatype of session is dictionary
@@ -407,7 +454,77 @@ def profile():
     #     connection.close()
     #     return render_template('profile.html',user = record)
 
-          
+@app.route('/forgot_password', methods = ['GET','POST'])
+def forgot_password():
+    if request.method == 'GET':
+        return render_template('forgot_password.html')
+    if request.method == 'POST':
+        email = request.form.get('email', None)
+        #check whether the email exist in DB or not
+        data = {'email':email}
+        record =  readUserRecordByEmail(user_data =data)
+        if 'id' in record:
+            # send Email
+            # Generate Token   using itsdangerous module
+            token = resetPasswordTokenGenerate(email = email)
+            # reset password url generate 1st we need to create a route for reset-password
+            reset_url = url_for('reset_password',token = token, _external = True)
+            email_status = sendEmail(
+                subject="Reset Password - SNS",
+                to_email= email,
+                body= emailTemplates.send_reset_password_template(
+                    username = record['name'],
+                    url = reset_url,
+                    time = 10
+                )
+            )
+            if email_status:
+                return render_template('forgot_password.html', msg = "Email send to Mail")
+            else:
+                return render_template('forgot_password.html', err = "Unable to send the email")
+        else:
+            return render_template('forgot_password.html', err = "Enter vaild Email")
+
+# reset password route
+@app.route('/reset-password/<string:token>', methods=['GET', 'POST'])
+def reset_password(token):
+    token_status = validateToken(token=token)
+    if token_status == 'Invalid':
+        return render_template('forgot_password.html',err="Invalid URL")
+    elif token_status == 'Timeout':
+        return render_template('forgot_password.html',err="URL Expired")
+    email = token_status
+    # GET request
+    if request.method == 'GET':
+        return render_template('reset_password.html',token=token)
+    # POST request
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    if new_password == confirm_password:
+        # Generate hashed password
+        password_hash = generateHash(text=new_password)
+        # Update password in DB
+        data = {
+            'email': email,
+            'new_password': password_hash
+        }
+        update = updatePasswordByIdorEmail(user_data=data)
+        if update:
+            # Redirect to login page
+            return redirect('/login')
+        else:
+            return render_template(
+                'reset_password.html',
+                token=token,
+                err="Unable to reset password"
+            )
+    else:
+        return render_template(
+            'reset_password.html',
+            token=token,
+            err="Password Mismatch"
+        )
+
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
@@ -455,8 +572,17 @@ def dashboard():
             notes = notes
             )
 
-    
+@app.route('/notes')
+def notes():
+    if 'id' not in session:
+        return redirect('/login')
+    return render_template('notes.html')
 
+@app.route('/files')
+def files():
+    if 'id' not in session:
+        return redirect('/login')
+    return render_template('files.html')
 
 if(__name__ == '__main__'):
     app.run(

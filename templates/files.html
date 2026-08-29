@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+My Files - SNS
+{% endblock %}
+
+
+{% block content %}
+
+<section class="page-header">
+
+    <div>
+
+        <h1>
+            My Files
+        </h1>
+        <a
+        href="/files/add"
+        class="btn btn-primary"
+    >
+        Add File
+    </a>
+        <p>
+            Manage your uploaded files.
+        </p>
+
+    </div>
+
+
+</section>
+
+
+<section>
+
+    {% if files %}
+
+        <div class="files-grid">
+
+            {% for file in files %}
+
+                <div class="file-card">
+
+                    <h3>
+                        {{ file.filename }}
+                    </h3>
+
+                    <p>
+                        {{ file.mime_type }}
+                    </p>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h2>
+                No Files Found
+            </h2>
+
+            <p>
+                You haven't uploaded any files yet.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+{% endblock %}
