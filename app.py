@@ -301,6 +301,48 @@ def validateToken(token):
     except TimedSerializer: # if token time out
         return "Timeout"
 
+#insert notes record in table
+def addNotesRecord(user_id:int,title:str,content:str) -> tuple[bool,str]:
+    try:
+        connection = getConnectionWithDB()
+        if connection == 'Connection Failed':
+            return False,'Database connection failed'
+        else:
+            cursor = connection.cursor()
+            add_notes_query = """INSERT INTO notes (user_id, title, content)VALUES (%s, %s, %s)"""
+            cursor.execute( add_notes_query,(user_id, title,content))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return True,f"Notes Saved"
+    except Exception as e:
+        return False, f"Exception raised in add notes :{e}"
+
+#fecting all notes  to notes dashboard
+# fetching all notes to notes dashboard
+
+def getNotesRecords(user_id: int):
+    try:
+        connection = getConnectionWithDB()
+        if connection == 'Connection Failed':
+            return False, []
+        else:
+            cursor = connection.cursor(dictionary=True)
+            get_notes_query = """
+                SELECT id, title, content
+                FROM notes
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+            """
+            cursor.execute(get_notes_query, (user_id,))
+            notes = cursor.fetchall()
+            cursor.close()
+            connection.close()
+            return True, notes
+    except Exception as e:
+        print(e)
+        return False, []
+    
 # Routes
 @app.route('/')
 def home():
@@ -576,7 +618,61 @@ def dashboard():
 def notes():
     if 'id' not in session:
         return redirect('/login')
-    return render_template('notes.html')
+    user_id = session['id']
+    status, notes = getNotesRecords(user_id)
+    if status == True:
+        return render_template('notes.html',notes=notes)
+    else:
+        return render_template('notes.html',notes=[],err="Unable to fetch notes")
+
+@app.route('/notes/addnotes',methods = ['GET','POST'])
+def addnotes():
+    if 'id' not in session:
+        return redirect('/login')
+    #get request
+    if request.method == 'GET':
+        return render_template('addnotes.html')
+    elif request.method == 'POST':
+        title = request.form.get('title', 'No Title')
+        content = request.form.get('content', 'No Content')
+        # store in DB
+        status,msg = addNotesRecord(
+            user_id = session['id'],
+            title = title,
+            content = content
+        )
+        if status == True:
+            # redirect to notes dashboard
+            return redirect('/notes')
+        else:
+            # redirect to  addnotes page
+             return render_template('addnotes.html',err=msg)
+    #post request
+
+
+# view notes route
+@app.route('/notes/view/<int:note_id>')
+def view_notes(note_id):
+    # get request
+    # get notes from DB based on notes id
+    pass
+
+#Edit notes route
+@app.route('/notes/edit/<int:note_id>', methods = ['GET','POST'])
+def edit_notes(note_id):
+    #get request
+        # get notes from DB based on notes id
+    #post request
+        #update notes content in DB as per the notes id
+
+    pass
+
+#delet note route
+@app.route('/notes/delete/<int:note_id>')
+def delete_notes(note_id):
+    #post request
+    # delete notes from DB based on note_id
+    pass
 
 @app.route('/files')
 def files():
