@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}
+View Note - SNS
+{% endblock %}
+
+{% block navmenu %}
+<a href="{{ url_for('notes') }}">My Notes</a>
+<a href="{{ url_for('dashboard') }}">Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<div class="note-view-container">
+    {% if note %}
+        <div class="note-view-header">
+            <h1>{{ note.title }}</h1>
+            <small>Created at: {{ note.created_at }}</small>
+        </div>
+
+        <div class="note-view-content">
+            {{ note.content }}
+        </div>
+
+        <div class="note-actions">
+            <a href="{{ url_for('edit_note', note_id=note.id) }}"
+               class="btn btn-edit">
+                Edit
+            </a>
+
+            <a href="{{ url_for('delete_note', note_id=note.id) }}"
+               class="btn btn-danger">
+                Delete
+            </a>
+
+            <a href="{{ url_for('notes') }}"
+               class="btn btn-secondary">
+                Back to My Notes
+            </a>
+        </div>
+    {% else %}
+        <p class="form-error">{{ err }}</p>
+        <a href="{{ url_for('notes') }}"
+           class="btn btn-secondary">
+            Back to My Notes
+        </a>
+    {% endif %}
+</div>
+{% endblock %}

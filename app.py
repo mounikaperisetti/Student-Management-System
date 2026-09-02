@@ -302,21 +302,20 @@ def validateToken(token):
         return "Timeout"
 
 #insert notes record in table
-def addNotesRecord(user_id:int,title:str,content:str) -> tuple[bool,str]:
+def addNotesRecord(user_id: int, title: str, content: str) -> tuple[bool, str]:
     try:
         connection = getConnectionWithDB()
         if connection == 'Connection Failed':
-            return False,'Database connection failed'
-        else:
-            cursor = connection.cursor()
-            add_notes_query = """INSERT INTO notes (user_id, title, content)VALUES (%s, %s, %s)"""
-            cursor.execute( add_notes_query,(user_id, title,content))
-            connection.commit()
-            cursor.close()
-            connection.close()
-            return True,f"Notes Saved"
+            return False, 'Database connection failed'
+        cursor = connection.cursor()
+        query = """INSERT INTO notes (user_id, title, content) VALUES (%s, %s, %s)"""
+        cursor.execute(query, (user_id, title, content))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return True, 'Notes Saved'
     except Exception as e:
-        return False, f"Exception raised in add notes :{e}"
+        return False, f"Exception raised in add notes: {e}"
 
 #fecting all notes  to notes dashboard
 # fetching all notes to notes dashboard
@@ -326,24 +325,67 @@ def getNotesRecords(user_id: int):
         connection = getConnectionWithDB()
         if connection == 'Connection Failed':
             return False, []
-        else:
-            cursor = connection.cursor(dictionary=True)
-            get_notes_query = """
-                SELECT id, title, content
-                FROM notes
-                WHERE user_id = %s
-                ORDER BY created_at DESC
-            """
-            cursor.execute(get_notes_query, (user_id,))
-            notes = cursor.fetchall()
-            cursor.close()
-            connection.close()
-            return True, notes
+        cursor = connection.cursor(dictionary=True)
+        query = """SELECT id, title, content FROM notes WHERE user_id = %s ORDER BY created_at DESC"""
+        cursor.execute(query, (user_id,))
+        notes = cursor.fetchall()
+        cursor.close()
+        connection.close()
+        return True, notes
     except Exception as e:
         print(e)
-        return False, []
+        return False, f"Exception raised in getting notes records : {e}"
+  
+# get notes by id
+def getNotesById(notes_id: int):
+    try:
+        connection = getConnectionWithDB()
+        if connection == 'Connection Failed':
+            return False, 'Database connection failed'
+        cursor = connection.cursor(dictionary=True)
+        query = """SELECT id, title, content, created_at FROM notes WHERE id = %s"""
+        cursor.execute(query, (notes_id,))
+        notes = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        if notes:
+            return True, notes
+        else:
+            return False, 'Note not found'
+    except Exception as e:
+        return False, f"Exception raised in view notes: {e}"
+
+def updateNotesById(notes_id:int,title:str, content:str):
+    try:
+        connection = getConnectionWithDB()
+        if connection == 'Connection Failed':
+            return False, 'Database connection failed'
+        cursor = connection.cursor()
+        query = """update notes set title = %s, content = %s where id =%s;"""
+        cursor.execute(query, (title, content,notes_id))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return True, 'Notes Updated'
+    except Exception as e:
+        return False, f"Exception raised in edit notes: {e}"
+        
+def deleteNotesById(notes_id: int):
+    try:
+        connection = getConnectionWithDB()
+        if connection == 'Connection Failed':
+            return False, 'Database connection failed'
+        cursor = connection.cursor(dictionary=True)
+        query = """DELETE FROM notes WHERE id = %s"""
+        cursor.execute(query, (notes_id,))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return True, 'Notes Deleted'
+    except Exception as e:
+        return False, f"Exception raised in delete notes: {e}"     
     
-# Routes
+######----------------------- Routes ------------------------#######
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -621,59 +663,74 @@ def notes():
     user_id = session['id']
     status, notes = getNotesRecords(user_id)
     if status == True:
-        return render_template('notes.html',notes=notes)
+        return render_template('notes.html', notes=notes)
     else:
-        return render_template('notes.html',notes=[],err="Unable to fetch notes")
-
-@app.route('/notes/addnotes',methods = ['GET','POST'])
-def addnotes():
+        return render_template('notes.html', notes=[], err="Unable to fetch notes")
+       
+@app.route('/notes/add', methods=['GET', 'POST'])
+def add_note():
     if 'id' not in session:
         return redirect('/login')
-    #get request
     if request.method == 'GET':
-        return render_template('addnotes.html')
-    elif request.method == 'POST':
-        title = request.form.get('title', 'No Title')
-        content = request.form.get('content', 'No Content')
-        # store in DB
-        status,msg = addNotesRecord(
-            user_id = session['id'],
-            title = title,
-            content = content
-        )
+        return render_template('add_note.html')
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        status, msg = addNotesRecord(user_id=session['id'], title=title, content=content)
         if status == True:
-            # redirect to notes dashboard
             return redirect('/notes')
         else:
-            # redirect to  addnotes page
-             return render_template('addnotes.html',err=msg)
-    #post request
-
+            return render_template('add_note.html', err=msg)
 
 # view notes route
 @app.route('/notes/view/<int:note_id>')
-def view_notes(note_id):
-    # get request
-    # get notes from DB based on notes id
-    pass
+def view_note(note_id):
+    if 'id' not in session:
+        return redirect('/login')
+    status, note = getNotesById(notes_id=note_id)
+    if status == True:
+        return render_template('view_note.html', note=note)
+    else:
+        return render_template('view_note.html', err=note)
 
 #Edit notes route
-@app.route('/notes/edit/<int:note_id>', methods = ['GET','POST'])
-def edit_notes(note_id):
-    #get request
-        # get notes from DB based on notes id
-    #post request
-        #update notes content in DB as per the notes id
+@app.route('/notes/edit/<int:note_id>', methods=['GET', 'POST'])
+def edit_note(note_id):
+    if 'id' not in session:
+        return redirect('/login')
+    if request.method == 'GET':
+        status, note = getNotesById(notes_id=note_id)
+        if status == True:
+            return render_template('edit_note.html', note=note)
+        else:
+            return render_template('notes.html', err=note)
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        status, msg = updateNotesById(title=title, content=content, notes_id=note_id)
+        if status == True:
+            return redirect('/notes')
+        else:
+            return render_template('edit_note.html', err=msg)
 
-    pass
-
-#delet note route
-@app.route('/notes/delete/<int:note_id>')
-def delete_notes(note_id):
-    #post request
-    # delete notes from DB based on note_id
-    pass
-
+#delete note route
+@app.route('/notes/delete/<int:note_id>', methods=['GET', 'POST'])
+def delete_note(note_id):
+    if 'id' not in session:
+        return redirect('/login')
+    if request.method == 'GET':
+        status, note = getNotesById(notes_id=note_id)
+        if status == True:
+            return render_template('delete_note.html', note=note)
+        else:
+            return render_template('delete_note.html', err=note)
+    if request.method == 'POST':
+        status, msg = deleteNotesById(notes_id=note_id)
+        if status == True:
+            return redirect('/notes')
+        else:
+            return render_template('delete_note.html', err=msg)
+#########--------------------Files-----------------######        
 @app.route('/files')
 def files():
     if 'id' not in session:

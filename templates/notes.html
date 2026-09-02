@@ -1,50 +1,67 @@
-{% extends "base.html" %} {% block title %} My Notes - SNS {% endblock %} {%
-block content %}
+{% extends "base.html" %}
+
+{% block title %}
+My Notes - SNS
+{% endblock %}
+
+{% block navmenu %}
+<a href="{{ url_for('dashboard') }}">Dashboard</a>
+<a href="{{ url_for('profile') }}">Profile</a>
+<a href="{{ url_for('logout') }}">Logout</a>
+{% endblock %}
+
+{% block content %}
 
 <div class="page-header">
-  <h1>My Notes</h1>
+    <div>
+        <h1>My Notes</h1>
+        <p>View, add, edit and delete your notes.</p>
+    </div>
 
-  <div class="note-page-actions">
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
-      Back to Dashboard
+    <a href="{{ url_for('add_note') }}" class="btn btn-primary">
+        + Add Note
     </a>
-
-    <a href="{{ url_for('addnotes') }}" class="btn btn-primary"> Add Note </a>
-  </div>
 </div>
 
-{% if msg %}
-<p style="color: green">{{ msg }}</p>
-{% elif err %}
-<p style="color: red">{{ err }}</p>
-{% endif %} {% if notes %}
-
+{% if notes %}
 <div class="notes-grid">
-  {% for note in notes %}
+    {% for note in notes %}
+    <div class="note-card">
+        <h3>{{ note.title }}</h3>
 
-  <div class="note-card">
-    <h3>{{ note.title }}</h3>
+        <p class="note-preview">
+    {{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}
+</p>
 
-    <p>{{ note.content }}</p>
+        <div class="note-actions">
+            <a href="{{ url_for('view_note', note_id=note.id) }}"
+               class="btn btn-secondary">
+                View
+            </a>
 
-    <div class="note-actions">
-      <a href="/notes/view/{{ note.id }}" class="btn btn-secondary"> View </a>
+            <a href="{{ url_for('edit_note', note_id=note.id) }}"
+               class="btn btn-edit">
+                Edit
+            </a>
 
-      <a href="/notes/edit/{{ note.id }}" class="btn btn-edit"> Edit </a>
-
-      <a href="/notes/delete/{{ note.id }}" class="btn btn-danger"> Delete </a>
+            <a href="{{ url_for('delete_note', note_id=note.id) }}"
+               class="btn btn-danger">
+                Delete
+            </a>
+        </div>
     </div>
-  </div>
-
-  {% endfor %}
+    {% endfor %}
 </div>
 
 {% else %}
-
 <div class="empty-state">
-  <h2>No Notes Found</h2>
+    <h2>No Notes Found</h2>
+    <p>Start by creating your first note.</p>
 
-  <p>Start by creating your first note.</p>
+    <a href="{{ url_for('add_note') }}" class="btn btn-primary">
+        + Add Note
+    </a>
 </div>
+{% endif %}
 
-{% endif %} {% endblock %}
+{% endblock %}
